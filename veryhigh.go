@@ -8,6 +8,8 @@ package python
 import "C"
 
 import (
+	"fmt"
+	"os"
 	"unsafe"
 )
 
@@ -34,6 +36,27 @@ func PyRun_SimpleString(command string) int {
 	c_cmd := C.CString(command)
 	defer C.free(unsafe.Pointer(c_cmd))
 	return int(C._gopy_PyRun_SimpleString(c_cmd))
+}
+
+// PyRun_SimpleFile executes the given python script synchronously.  Note that
+// unlike the corresponding C API, this will internally open and close the file
+// for you.
+func PyRun_SimpleFile(filename string) error {
+  f, err := os.Open(filename)
+  if err != nil {
+    return err
+  }
+  defer f.Close()
+  cfile := file2py(f, "r")
+  defer C.fclose(cfile)
+
+  cfname := C.CString(filename)
+  defer C.free(unsafe.Pointer(cfname))
+  retcode := C.PyRun_SimpleFileExFlags(cfile, cfname, 0, nil)
+  if retcode != 0 {
+    return fmt.Errorf("error %d executing script %s", int(retcode), filename)
+  }
+  return nil
 }
 
 // EOF
